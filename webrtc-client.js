@@ -128,7 +128,7 @@ socket.on('message', function (message){
 function createPeerConnection() {
   try {
 
-    peerConnection = new RTCPeerConnection(pcConfig, pcConstraints);
+    peerConnection = new RTCPeerConnection(pcConfig);
     peerConnection.addStream(localStream);
     peerConnection.onicecandidate = handleIceCandidate;
 
