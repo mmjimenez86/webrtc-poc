@@ -15,7 +15,7 @@ io.on('connection', function (socket) {
 
   socket.on('message', function (message) {
     console.log('got message: ', message);
-    socket.broadcast.to(message.channel).emit('message', message);
+    socket.broadcast.emit('message', message);
   });
 
 
@@ -34,6 +34,7 @@ io.on('connection', function (socket) {
       } else if (numClients == 1) {
         // Second client joining...
         io.in(room).emit('join', room);
+        //io.emit('join', room);
         socket.join(room);
         socket.emit('joined', room);
       } else {
