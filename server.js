@@ -53,10 +53,10 @@ io.on('connection', function (socket) {
     });
   });
 
-  socket.on('chat', function (message, room) {
-    console.log('chat message: ', message);
-    io.in(room).emit('chat', message);
-  });
+  // socket.on('chat', function (message, room) {
+  //   console.log('chat message: ', message);
+  //   io.in(room).emit('chat', message);
+  // });
 
   socket.on('bye', function(){
     console.log('received bye');

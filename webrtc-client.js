@@ -124,15 +124,17 @@ socket.on('message', function (message) {
  * Control chat button.
  */
 sendMessageBtn.addEventListener('click', function () {
-  socket.emit('chat', { author: nameInput.value, message: messageInput.value }, room);
+  // socket.emit('chat', { author: nameInput.value, message: messageInput.value }, room);
+  displayMessage({ author: nameInput.value, message: messageInput.value });
+  sendChannel.send(JSON.stringify({ author: nameInput.value, message: messageInput.value }));
 });
 
 /**
  * receive chat message.
  */
-socket.on('chat', function (data) {
-  displayMessage(data);
-});
+// socket.on('chat', function (data) {
+//   displayMessage(data);
+// });
 
 // --- WebRTC related handlers
 
@@ -147,6 +149,7 @@ function createPeerConnection() {
     peerConnection.onicecandidate = handleIceCandidate;
     peerConnection.onaddstream = handleRemoteStreamAdded;
     peerConnection.onremovestream = handleRemoteStreamRemoved;
+    peerConnection.ondatachannel = gotReceiveChannel;
 
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message);
@@ -154,24 +157,18 @@ function createPeerConnection() {
   }
 
 
-  if (isInitiator) {
-    // user is initiator: Create.
-    try {
-      // Create a reliable data channel
-      sendChannel = peerConnection.createDataChannel("sendDataChannel", {reliable: true});
-      console.log('Created send data channel');
-    } catch (e) {
-      console.log('createDataChannel() failed with exception: ' + e.message);
-    }
-
-    sendChannel.onopen = handleChannelStateChange;
-    sendChannel.onmessage = handleMessage;
-    sendChannel.onclose = handleChannelStateChange;
-
-  } else {
-    // User is not initiator: Join
-    peerConnection.ondatachannel = gotReceiveChannel;
+  try {
+    // Create a reliable data channel
+    sendChannel = peerConnection.createDataChannel("sendDataChannel", { reliable: true });
+    console.log('Created send data channel');
+  } catch (e) {
+    console.log('createDataChannel() failed with exception: ' + e.message);
   }
+
+  sendChannel.onopen = handleChannelStateChange;
+  sendChannel.onmessage = handleMessage;
+  sendChannel.onclose = handleChannelStateChange;
+
 }
 
 /**
@@ -233,15 +230,15 @@ function handleRemoteStreamRemoved(event) {
 function handleChannelStateChange() {
   var readyState = sendChannel.readyState;
   console.log('Send channel state is: ' + readyState);
-  if (readyState == "open") {
+  // if (readyState == "open") {
     // dataChannelSend.disabled = false;
     // dataChannelSend.focus();
     // dataChannelSend.placeholder = "";
     // sendButton.disabled = false;
-  } else {
+  // } else {
     // dataChannelSend.disabled = true;
     // sendButton.disabled = true;
-  }
+  // }
 }
 
 
@@ -251,16 +248,16 @@ function handleChannelStateChange() {
  */
 function handleMessage(event) {
   console.log('Received message: ' + event.data);
-  // receiveTextarea.value += event.data + '\n';
+  displayMessage(JSON.parse(event.data));
 }
 
 
 function gotReceiveChannel(event) {
-  // console.log('Receive Channel Callback');
-  // receiveChannel = event.channel;
-  // receiveChannel.onmessage = handleMessage;
-  // receiveChannel.onopen = handleChannelStateChange;
-  // receiveChannel.onclose = handleChannelStateChange;
+  console.log('Receive Channel Callback');
+  receiveChannel = event.channel;
+  receiveChannel.onmessage = handleMessage;
+  receiveChannel.onopen = handleChannelStateChange;
+  receiveChannel.onclose = handleChannelStateChange;
 }
 
 
@@ -372,12 +369,12 @@ function handleRemoteHangup() {
 
 function stop() {
   isStarted = false;
-  // if (sendChannel) {
-  //   sendChannel.close();
-  // }
-  // if (receiveChannel) {
-  //   receiveChannel.close();
-  // }
+  if (sendChannel) {
+    sendChannel.close();
+  }
+  if (receiveChannel) {
+    receiveChannel.close();
+  }
   if (peerConnection) {
     peerConnection.close();
   }
