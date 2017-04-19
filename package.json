@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
+    "https": "^1.0.0",
     "node-static": "^0.7.9",
     "socket.io": "^1.7.3",
     "webrtc-adapter": "^3.3.1"
