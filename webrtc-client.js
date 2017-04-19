@@ -9,9 +9,10 @@ window.onbeforeunload = function() {
 };
 
 
-// var sendButton = document.getElementById("sendButton");
-// var dataChannelSend = document.getElementById("dataChannelSend");
-// var dataChannelReceive = document.getElementById("dataChannelReceive");
+var sendMessageBtn = document.getElementById('sendMessageBtn');
+var messageContainer = document.getElementById('messageContainer');
+var nameInput = document.getElementById('myName');
+var messageInput = document.getElementById('myMessage');
 
 // Video HTML5 elements
 var localVideo = document.querySelector('#localVideo');
@@ -23,7 +24,7 @@ var isStarted = false; // If the communication has already been started.
 var isChannelReady = false;
 
 // Data channels
-// var sendChannel, receiveChannel;
+var sendChannel, receiveChannel;
 
 
 // WebRTC data structures
@@ -64,11 +65,6 @@ if (room !== '') {
 socket.on('created', function (room){
   console.log('Created room ' + room);
   isInitiator = true;
-
-  // navigator.getUserMedia(pcConstraints, handleUserMedia, handleUserMediaError);
-  // console.log('Getting user media with constraints', pcConstraints);
-
-  // checkAndStart();
 });
 
 /**
@@ -93,9 +89,6 @@ socket.on('join', function (room){
 socket.on('joined', function (room){
   console.log('This peer has joined room ' + room);
   isChannelReady = true;
-
-  // navigator.getUserMedia(pcConstraints, handleUserMedia, handleUserMediaError);
-  // console.log('Getting user media with constraints', pcConstraints);
 });
 
 
@@ -127,6 +120,19 @@ socket.on('message', function (message) {
   }
 });
 
+/**
+ * Control chat button.
+ */
+sendMessageBtn.addEventListener('click', function () {
+  socket.emit('chat', { author: nameInput.value, message: messageInput.value }, room);
+});
+
+/**
+ * receive chat message.
+ */
+socket.on('chat', function (data) {
+  displayMessage(data);
+});
 
 // --- WebRTC related handlers
 
@@ -148,24 +154,24 @@ function createPeerConnection() {
   }
 
 
-  // if (isInitiator) {
-  //   // user is initiator: Create.
-  //   try {
-  //     // Create a reliable data channel
-  //     sendChannel = peerConnection.createDataChannel("sendDataChannel", {reliable: true});
-  //     console.log('Created send data channel');
-  //   } catch (e) {
-  //     console.log('createDataChannel() failed with exception: ' + e.message);
-  //   }
-  //
-  //   sendChannel.onopen = handleChannelStateChange;
-  //   sendChannel.onmessage = handleMessage;
-  //   sendChannel.onclose = handleChannelStateChange;
-  //
-  // } else {
-  //   // User is not initiator: Join
-  //   peerConnection.ondatachannel = gotReceiveChannel;
-  // }
+  if (isInitiator) {
+    // user is initiator: Create.
+    try {
+      // Create a reliable data channel
+      sendChannel = peerConnection.createDataChannel("sendDataChannel", {reliable: true});
+      console.log('Created send data channel');
+    } catch (e) {
+      console.log('createDataChannel() failed with exception: ' + e.message);
+    }
+
+    sendChannel.onopen = handleChannelStateChange;
+    sendChannel.onmessage = handleMessage;
+    sendChannel.onclose = handleChannelStateChange;
+
+  } else {
+    // User is not initiator: Join
+    peerConnection.ondatachannel = gotReceiveChannel;
+  }
 }
 
 /**
@@ -224,19 +230,19 @@ function handleRemoteStreamRemoved(event) {
  * Handle the changes of the status of the data channel
  * (opening, closing, ...).
  */
-// function handleChannelStateChange() {
-//   var readyState = sendChannel.readyState;
-//   console.log('Send channel state is: ' + readyState);
-//   if (readyState == "open") {
-//     dataChannelSend.disabled = false;
-//     dataChannelSend.focus();
-//     dataChannelSend.placeholder = "";
-//     sendButton.disabled = false;
-//   } else {
-//     dataChannelSend.disabled = true;
-//     sendButton.disabled = true;
-//   }
-// }
+function handleChannelStateChange() {
+  var readyState = sendChannel.readyState;
+  console.log('Send channel state is: ' + readyState);
+  if (readyState == "open") {
+    // dataChannelSend.disabled = false;
+    // dataChannelSend.focus();
+    // dataChannelSend.placeholder = "";
+    // sendButton.disabled = false;
+  } else {
+    // dataChannelSend.disabled = true;
+    // sendButton.disabled = true;
+  }
+}
 
 
 /**
@@ -249,13 +255,13 @@ function handleMessage(event) {
 }
 
 
-// function gotReceiveChannel(event) {
-//   console.log('Receive Channel Callback');
-//   receiveChannel = event.channel;
-//   receiveChannel.onmessage = handleMessage;
-//   receiveChannel.onopen = handleChannelStateChange;
-//   receiveChannel.onclose = handleChannelStateChange;
-// }
+function gotReceiveChannel(event) {
+  // console.log('Receive Channel Callback');
+  // receiveChannel = event.channel;
+  // receiveChannel.onmessage = handleMessage;
+  // receiveChannel.onopen = handleChannelStateChange;
+  // receiveChannel.onclose = handleChannelStateChange;
+}
 
 
 
@@ -336,8 +342,18 @@ function onSignalingError(error) {
   console.log('Failed to create signaling message : ' + error.name);
 }
 
-
-
+/**
+ * Append chat message to the message area
+ * @param message
+ */
+function displayMessage(message) {
+  messageContainer.innerHTML = messageContainer.innerHTML
+    + "<div><strong>"
+    + message.author
+    + ": </strong>"
+    + message.message
+    + "</div>";
+}
 
 
 // --- Clean up functions

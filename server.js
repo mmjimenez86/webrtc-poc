@@ -45,12 +45,17 @@ io.on('connection', function (socket) {
         socket.broadcast.to(room).emit('join', room);
         socket.join(room);
         socket.emit('joined', room, socket.id);
-        socket.broadcast.to(room).emit('ready', room);
+        // socket.broadcast.to(room).emit('ready', room);
       } else {
         // max two clients
         socket.emit('full', room);
       }
     });
+  });
+
+  socket.on('chat', function (message, room) {
+    console.log('chat message: ', message);
+    io.in(room).emit('chat', message);
   });
 
   socket.on('bye', function(){
