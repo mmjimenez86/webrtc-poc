@@ -11,9 +11,6 @@
   <video id="remoteVideo" autoplay></video>
   <video id="localVideo" autoplay></video>
 
-  <!--<button id="buttonStart">Start</button>-->
-  <!--<button id="buttonCall">Call</button>-->
-
   <div id="messageContainer">
 
   </div>
@@ -24,12 +21,23 @@
     <input id="sendMessageBtn" type="submit">
   </div>
 
+  <div>
+    <progress id="fileProgress" value="1" max="100"></progress>
+  </div>
+
+  <div>
+    <input id="sendFile" type="file">
+    <button id="sendButton" type="button">Send File</button>
+  </div>
+
 
 </div>
 
 <script src='/socket.io/socket.io.js'></script>
 <script src='node_modules/webrtc-adapter/out/adapter.js'></script>
 <script src='webrtc-client.js'></script>
+
+
 
 </body>
 </html>

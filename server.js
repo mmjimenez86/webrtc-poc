@@ -58,6 +58,13 @@ io.on('connection', function (socket) {
   //   io.in(room).emit('chat', message);
   // });
 
+  socket.on('file', function (data) {
+    socket.broadcast.emit('file', {
+      filename: data.filename,
+      filesize: data.filesize
+    });
+  });
+
   socket.on('bye', function(){
     console.log('received bye');
   });

@@ -4,7 +4,7 @@
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
 // Event clean the window before leaving it
-window.onbeforeunload = function() {
+window.onbeforeunload = function () {
   hangup();
 };
 
@@ -13,6 +13,14 @@ var sendMessageBtn = document.getElementById('sendMessageBtn');
 var messageContainer = document.getElementById('messageContainer');
 var nameInput = document.getElementById('myName');
 var messageInput = document.getElementById('myMessage');
+
+var sendFileInput = document.getElementById('sendFile');
+var sendFileButton = document.getElementById('sendButton');
+var progressBar = document.getElementById('fileProgress');
+
+var receivedFileName, receivedFileSize;
+var fileBuffer = [];
+var fileSize = 0;
 
 // Video HTML5 elements
 var localVideo = document.querySelector('#localVideo');
@@ -32,8 +40,8 @@ var peerConnection; // the variable in which the peer connection will be created
 var localStream, remoteStream; // the streams.
 
 // Peer connection configuration depending on the browser
-var pcConfig = {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}]};
-var pcConstraints = {video: true, audio: true};
+var pcConfig = { 'iceServers': [{ 'url': 'stun:stun.l.google.com:19302' }] };
+var pcConstraints = { video: true, audio: true };
 var sdpConstraints = {};
 
 // Connect to signaling server
@@ -45,9 +53,9 @@ if (room !== '') {
   console.log('Create or join room', room);
 
   navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true
-    })
+    audio: true,
+    video: true
+  })
     .then(handleUserMedia)
     .catch(handleUserMediaError);
 
@@ -62,7 +70,7 @@ if (room !== '') {
  * In this case, the current peer is the initiator
  * (the communication has just been created).
  */
-socket.on('created', function (room){
+socket.on('created', function (room) {
   console.log('Created room ' + room);
   isInitiator = true;
 });
@@ -70,14 +78,14 @@ socket.on('created', function (room){
 /**
  * Handle the case in which a room is full.
  */
-socket.on('full', function (room){
+socket.on('full', function (room) {
   console.log('Room ' + room + ' is full');
 });
 
 /**
  * Handle when another peer is joining the channel.
  */
-socket.on('join', function (room){
+socket.on('join', function (room) {
   console.log('Another peer made a request to join room ' + room);
   console.log('This peer is the initiator of room ' + room + '!');
   isChannelReady = true;
@@ -86,7 +94,7 @@ socket.on('join', function (room){
 /**
  * Handle when a second peer is joining the channel
  */
-socket.on('joined', function (room){
+socket.on('joined', function (room) {
   console.log('This peer has joined room ' + room);
   isChannelReady = true;
 });
@@ -110,8 +118,8 @@ socket.on('message', function (message) {
   } else if (message.type === 'candidate' && isStarted) {
     var candidate = new RTCIceCandidate(
       {
-        sdpMLineIndex:message.label,
-        candidate:message.candidate
+        sdpMLineIndex: message.label,
+        candidate: message.candidate
       }
     );
     peerConnection.addIceCandidate(candidate);
@@ -120,21 +128,86 @@ socket.on('message', function (message) {
   }
 });
 
+socket.on('file', function (data) {
+  receivedFileName = data.filename;
+  receivedFileSize = data.filesize;
+});
+
 /**
  * Control chat button.
  */
 sendMessageBtn.addEventListener('click', function () {
   // socket.emit('chat', { author: nameInput.value, message: messageInput.value }, room);
   displayMessage({ author: nameInput.value, message: messageInput.value });
-  sendChannel.send(JSON.stringify({ author: nameInput.value, message: messageInput.value }));
+  sendChannel.send(JSON.stringify({ author: nameInput.value, message: messageInput.value, type: 'chat' }));
 });
 
-/**
- * receive chat message.
- */
+// /**
+//  * receive chat message.
+//  */
 // socket.on('chat', function (data) {
 //   displayMessage(data);
 // });
+
+/**
+ * Send file button.
+ */
+sendFileButton.addEventListener('click', function () {
+  var file = sendFileInput.files[0];
+
+  socket.emit('file', { filename: file.name, filesize: file.size });
+
+  progressBar.max = file.size;
+  var chunkSize = 16384;
+  var sliceFile = function (offset) {
+    var reader = new window.FileReader();
+    reader.onload = (function () {
+      return function (e) {
+        sendChannel.send(e.target.result);
+        if (file.size > offset + e.target.result.byteLength) {
+          window.setTimeout(sliceFile, 0, offset + chunkSize);
+        }
+        progressBar.value = offset + e.target.result.byteLength;
+      };
+    })(file);
+    var slice = file.slice(offset, offset + chunkSize);
+    reader.readAsArrayBuffer(slice);
+  };
+  sliceFile(0);
+});
+
+function handleReceiveFile(event) {
+
+  fileBuffer.push(event.data);
+  fileSize += event.data.byteLength;
+  progressBar.value = fileSize * 100 / receivedFileSize;
+
+  //Provide link to downloadable file when complete
+  if (fileSize === receivedFileSize) {
+    var received = new window.Blob(fileBuffer);
+    displayFileMessage(received);
+    fileBuffer = [];
+    fileSize = 0;
+  }
+}
+
+/**
+ * Display a received file in the chat.
+ * @param receivedBytes
+ */
+function displayFileMessage(receivedBytes) {
+  var div = document.createElement("DIV");
+  var a = document.createElement("A");
+  a.href = URL.createObjectURL(receivedBytes);
+  a.download = receivedFileName;
+  a.appendChild(document.createTextNode(receivedFileName + "(" + fileSize + ") bytes"));
+  a.innerHTML = receivedFileName;
+
+  div.appendChild(a);
+
+  messageContainer.appendChild(div);
+}
+
 
 // --- WebRTC related handlers
 
@@ -198,7 +271,8 @@ function handleIceCandidate(event) {
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
-      candidate: event.candidate.candidate});
+      candidate: event.candidate.candidate
+    });
   } else {
     console.log('End of candidates.');
   }
@@ -231,13 +305,13 @@ function handleChannelStateChange() {
   var readyState = sendChannel.readyState;
   console.log('Send channel state is: ' + readyState);
   // if (readyState == "open") {
-    // dataChannelSend.disabled = false;
-    // dataChannelSend.focus();
-    // dataChannelSend.placeholder = "";
-    // sendButton.disabled = false;
+  // dataChannelSend.disabled = false;
+  // dataChannelSend.focus();
+  // dataChannelSend.placeholder = "";
+  // sendButton.disabled = false;
   // } else {
-    // dataChannelSend.disabled = true;
-    // sendButton.disabled = true;
+  // dataChannelSend.disabled = true;
+  // sendButton.disabled = true;
   // }
 }
 
@@ -248,7 +322,17 @@ function handleChannelStateChange() {
  */
 function handleMessage(event) {
   console.log('Received message: ' + event.data);
-  displayMessage(JSON.parse(event.data));
+  var message = null;
+  try {
+    message = JSON.parse(event.data);
+  } catch (err) {
+  }
+
+  if (message && message.type === 'chat') {
+    displayMessage(message);
+  } else {
+    handleReceiveFile(event);
+  }
 }
 
 
@@ -259,7 +343,6 @@ function gotReceiveChannel(event) {
   receiveChannel.onopen = handleChannelStateChange;
   receiveChannel.onclose = handleChannelStateChange;
 }
-
 
 
 // --- Auxiliary handlers
@@ -280,7 +363,7 @@ function handleUserMedia(stream) {
   localStream = stream;
   attachMediaStream(localVideo, stream);
   console.log('Adding local stream.');
-  sendMessage({type: 'got user media'});
+  sendMessage({ type: 'got user media' });
   if (isInitiator) {
     checkAndStart();
   }
@@ -290,7 +373,7 @@ function handleUserMedia(stream) {
  * getUserMedia error callback.
  * @param error The error.
  */
-function handleUserMediaError(error){
+function handleUserMediaError(error) {
   console.log('navigator.getUserMedia error: ', error);
 }
 
@@ -358,7 +441,7 @@ function displayMessage(message) {
 function hangup() {
   console.log('Hanging up.');
   stop();
-  sendMessage({type: 'bye'});
+  sendMessage({ type: 'bye' });
 }
 
 function handleRemoteHangup() {
